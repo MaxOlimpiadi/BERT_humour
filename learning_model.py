@@ -26,8 +26,8 @@ train_encodings = tokenizer(list(train_texts), truncation=True, padding=True, ma
 test_encodings = tokenizer(list(test_texts), truncation=True, padding=True, max_length=512)
 
 # Преобразуем метки в тензоры
-train_labels = torch.tensor(list(train_labels.values))
-test_labels = torch.tensor(list(test_labels.values))
+train_labels = torch.tensor(train_labels.values)
+test_labels = torch.tensor(test_labels.values)
 
 # ====== Шаг 3: Создание Dataset и DataLoader ======
 class HumorDataset(Dataset):
