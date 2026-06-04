@@ -57,72 +57,72 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 model.to(device)
 
 
-# # ====== Шаг 5: Тренировка модели ======
-# model.train()
+# ====== Шаг 5: Тренировка модели ======
+model.train()
 
-# # Параметры для ранней остановки
-# early_stopping_patience = 3  # Количество эпох без улучшений перед остановкой
-# best_loss = float("inf")  # Лучшее значение потерь на текущий момент
-# patience_counter = 0  # Счётчик эпох без улучшений
+# Параметры для ранней остановки
+early_stopping_patience = 3  # Количество эпох без улучшений перед остановкой
+best_loss = float("inf")  # Лучшее значение потерь на текущий момент
+patience_counter = 0  # Счётчик эпох без улучшений
 
-# # Задаём минимально допустимое значение Loss
-# min_acceptable_loss = 0.005  # Пример: остановить, если Loss меньше 0.1
+# Задаём минимально допустимое значение Loss
+min_acceptable_loss = 0.005  # Пример: остановить, если Loss меньше 0.1
 
-# for epoch in range(10):  # Устанавливаем максимальное количество эпох
-#     print(f"Epoch {epoch + 1}")
-#     epoch_loss = 0
+for epoch in range(10):  # Устанавливаем максимальное количество эпох
+    print(f"Epoch {epoch + 1}")
+    epoch_loss = 0
 
-#     for step, batch in enumerate(train_loader):
-#         optimizer.zero_grad()
-#         batch = {key: val.to(device) for key, val in batch.items()}
+    for step, batch in enumerate(train_loader):
+        optimizer.zero_grad()
+        batch = {key: val.to(device) for key, val in batch.items()}
 
-#         # Прогоняем данные через модель
-#         outputs = model(**batch)
-#         loss = outputs.loss
-#         loss.backward()
-#         optimizer.step()
+        # Прогоняем данные через модель
+        outputs = model(**batch)
+        loss = outputs.loss
+        loss.backward()
+        optimizer.step()
 
-#         # Суммируем Loss
-#         epoch_loss += loss.item()
+        # Суммируем Loss
+        epoch_loss += loss.item()
 
-#         # Периодический вывод Loss
-#         if step % 10 == 0:
-#             print(f"Step {step}, Loss: {loss.item()}")
+        # Периодический вывод Loss
+        if step % 10 == 0:
+            print(f"Step {step}, Loss: {loss.item()}")
 
-#         # Прерывание, если Loss ниже порога
-#         if loss.item() < min_acceptable_loss:
-#             print(f"Stopping early: Loss {loss.item()} < {min_acceptable_loss}")
-#             break
+        # # Прерывание, если Loss ниже порога
+        # if loss.item() < min_acceptable_loss:
+        #     print(f"Stopping early: Loss {loss.item()} < {min_acceptable_loss}")
+        #     break
 
-#     # Средний Loss за эпоху
-#     average_epoch_loss = epoch_loss / len(train_loader)
-#     print(f"Average loss for epoch {epoch + 1}: {average_epoch_loss}")
+    # Средний Loss за эпоху
+    average_epoch_loss = epoch_loss / len(train_loader)
+    print(f"Average loss for epoch {epoch + 1}: {average_epoch_loss}")
 
-#     # Прерывание, если средний Loss ниже порога
-#     if average_epoch_loss < min_acceptable_loss:
-#         print(f"Stopping early: Average loss {average_epoch_loss} < {min_acceptable_loss}")
-#         break
-# #+============================================================================================
+    # Прерывание, если средний Loss ниже порога
+    if average_epoch_loss < min_acceptable_loss:
+        print(f"Stopping early: Average loss {average_epoch_loss} < {min_acceptable_loss}")
+        break
+#+============================================================================================
 
 
 
-#Загрузка модели++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
-optimizer = AdamW(model.parameters(), lr=5e-5)
+# #Загрузка модели++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
+# optimizer = AdamW(model.parameters(), lr=5e-5)
 
-# Указываем устройство
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-model.to(device)
+# # Указываем устройство
+# device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+# model.to(device)
 
-# Загружаем сохранённое состояние
-checkpoint = torch.load("trained_model.pth", map_location=device)
+# # Загружаем сохранённое состояние
+# checkpoint = torch.load("trained_model.pth", map_location=device)
 
-# Восстанавливаем веса модели и параметры оптимизатора
-model.load_state_dict(checkpoint["model_state_dict"])
-optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-start_epoch = checkpoint["epoch"]
-print(f"Model loaded. Resuming from epoch {start_epoch + 1}")
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# # Восстанавливаем веса модели и параметры оптимизатора
+# model.load_state_dict(checkpoint["model_state_dict"])
+# optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+# start_epoch = checkpoint["epoch"]
+# print(f"Model loaded. Resuming from epoch {start_epoch + 1}")
+# #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 # ====== Прогон модели по тестовым данным и сохранение результатов ======
@@ -206,6 +206,20 @@ print(f"Results saved to {output_file}")
 
 
 
+#++++++++++++++++++++++++++++++++++++++Saving of model++++++++++++++++++++++++++
+# Сохранение модели
+save_path = "trained_model.pth"
+
+torch.save({
+    "model_state_dict": model.state_dict(),  # Веса модели
+    "optimizer_state_dict": optimizer.state_dict(),  # Параметры оптимизатора
+    "epoch": epoch,  # Последняя эпоха
+}, save_path)
+
+print(f"Model saved to {save_path}")
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
 
 
 # ====== Шаг 6: Предсказание на новом тексте ======
@@ -242,18 +256,10 @@ print(f"Results saved to {output_file}")
 
 
 
-#++++++++++++++++++++++++++++++++++++++Saving of model++++++++++++++++++++++++++
-# # Сохранение модели
-# save_path = "trained_model.pth"
 
-# torch.save({
-#     "model_state_dict": model.state_dict(),  # Веса модели
-#     "optimizer_state_dict": optimizer.state_dict(),  # Параметры оптимизатора
-#     "epoch": epoch,  # Последняя эпоха
-# }, save_path)
 
-# print(f"Model saved to {save_path}")
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
 
 
 
