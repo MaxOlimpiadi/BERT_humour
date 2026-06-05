@@ -1,10 +1,13 @@
 from sklearn.model_selection import train_test_split
-from transformers import BertTokenizer, BertForSequenceClassification, AdamW
+from transformers import BertTokenizer, BertForSequenceClassification
+from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
 import torch
 import pandas as pd
 from torch.nn.functional import softmax
 from sklearn.metrics import classification_report, accuracy_score, precision_score, recall_score, f1_score
+import os
+from datetime import datetime
 
 
 # Training parameters:
@@ -17,14 +20,24 @@ LEARNING_RATE = 5e-5
 MODEL_NAME = "bert-base-uncased"
 SAVE_BEST_PATH = 'best_model.pth'
 
-# Data:
-DATA_PATH = 'dataset.csv'
-TRAIN_SPLIT_PATH = 'train.csv'
-VAL_SPLIT_PATH = 'val.csv'
-TEST_SPLIT_PATH = 'test.csv'
+# Datasets:
+DATA_FOLDER = 'datasets'    
+DATASET_FILE = 'dataset.csv'
+
+# Splits:
+SPLIT_FOLDER = 'split'
+TRAIN_SPLIT_FILE = 'train.csv'
+VAL_SPLIT_FILE = 'val.csv'
+TEST_SPLIT_FILE = 'test.csv'
+
+# Test prediction results:
+TEST_RESULTS_FOLDER = 'test'
+TEST_RESULTS_FILE = 'predictions.csv'
+
 
 # Experiment:
 CREATE_SPLITS = True  # Если нужно датасет разбить на трейн, вал, тест. Иначе - сразу грузим все 3 части из соотв. файлов.
+LOG_FILE_NAME = "experiments_log.csv"
 
 
 
@@ -72,9 +85,9 @@ def create_splits(texts, labels):
         stratify = temp_labels
     )
 
-    save_split(train_texts, train_labels, TRAIN_SPLIT_PATH)
-    save_split(val_texts, val_labels, VAL_SPLIT_PATH)
-    save_split(test_texts, test_labels, TEST_SPLIT_PATH)
+    save_split(train_texts, train_labels, TRAIN_SPLIT_FILE)
+    save_split(val_texts, val_labels, VAL_SPLIT_FILE)
+    save_split(test_texts, test_labels, TEST_SPLIT_FILE)
     
     
     
@@ -85,8 +98,8 @@ def save_split(texts, labels, filename):
             'label': labels
         }    
     )
-    
-    df.to_csv(filename, index = False)
+    full_path = os.path.join(SPLIT_FOLDER, filename)
+    df.to_csv(full_path, index = False)
     
 
 
@@ -100,9 +113,9 @@ def load_split(filename):
 
 def prepare_data(tokenizer):
     
-    train_texts, train_labels = load_split(TRAIN_SPLIT_PATH)
-    val_texts, val_labels = load_split(VAL_SPLIT_PATH)
-    test_texts, test_labels = load_split(TEST_SPLIT_PATH)
+    train_texts, train_labels = load_split(os.path.join(SPLIT_FOLDER, TRAIN_SPLIT_FILE))
+    val_texts, val_labels = load_split(os.path.join(SPLIT_FOLDER, VAL_SPLIT_FILE))
+    test_texts, test_labels = load_split(os.path.join(SPLIT_FOLDER, TEST_SPLIT_FILE))
     
     train_encodings = tokenizer(list(train_texts), truncation=True, padding=True, max_length = MAX_LENGTH)
     val_encodings = tokenizer(list(val_texts), truncation=True, padding=True, max_length = MAX_LENGTH)
@@ -206,7 +219,7 @@ def validate_model(model, val_dataloader, device):
 
 
 def evaluate_model(model, test_loader, tokenizer, device):
-    output_file = "test_results.csv"  # Название файла для сохранения результатов
+    output_file_path = os.path.join(TEST_RESULTS_FOLDER, TEST_RESULTS_FILE)  # Название файла для сохранения результатов
     
     # Перевод модели в режим оценки
     model.eval()
@@ -276,8 +289,8 @@ def evaluate_model(model, test_loader, tokenizer, device):
     
     # Сохранение результатов в CSV файл
     results_df = pd.DataFrame(results, columns=["Text", "Real Label", "Predicted Label", "Probability Humorous", "Probability Not Humorous"])
-    results_df.to_csv(output_file, index=False, encoding="utf-8")
-    print(f"Results saved to {output_file}")
+    results_df.to_csv(output_file_path, index=False, encoding="utf-8")
+    print(f"Results saved to {output_file_path}")
     
     return {
         "accuracy": accuracy,
@@ -302,11 +315,32 @@ def save_model(save_path, model, optimizer):
 
 
 
+
+def log_experiment(dataset_name, model_name, lr, batch_size, metrics_dict, log_filename = LOG_FILE_NAME):
+    row = {
+        "datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "dataset": dataset_name,
+        "model": model_name,
+        "lr": lr,
+        "batch_size": batch_size,
+        **metrics_dict # Распаковываем ваши TP, FP, F1 и т.д.
+    }
+    
+    df = pd.DataFrame([row])
+    
+    # Если файл не существует, создаем его с колонками. Если существует — дописываем в конец (mode='a')
+    header = not os.path.exists(log_filename)
+    df.to_csv(log_filename, mode='a', index=False, header=header)
+
+
+
+
 def main():
     tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
     
     if CREATE_SPLITS:
-        texts, labels = load_data(DATA_PATH)
+        data_path = os.path.join(DATA_FOLDER, DATASET_FILE)
+        texts, labels = load_data(data_path)
         create_splits(texts, labels)
     
     train_dataset, val_dataset, test_dataset = prepare_data(tokenizer)
@@ -321,8 +355,10 @@ def main():
     checkpoint = torch.load(SAVE_BEST_PATH)
     model.load_state_dict(checkpoint["model_state_dict"])
     
-    metrics = evaluate_model(model, test_dataloader, tokenizer, device)
-    print(metrics)
+    metrics_dict = evaluate_model(model, test_dataloader, tokenizer, device)
+    print(metrics_dict)
+    
+    log_experiment(DATASET_FILE, MODEL_NAME, LEARNING_RATE, BATCH_SIZE, metrics_dict)
 
 
     
