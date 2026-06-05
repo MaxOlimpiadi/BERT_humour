@@ -7,12 +7,27 @@ from torch.nn.functional import softmax
 from sklearn.metrics import classification_report, accuracy_score, precision_score, recall_score, f1_score
 
 
-
+# Training parameters:
 BATCH_SIZE = 16
 MAX_LENGTH = 512
 EPOCHS = 10
 LEARNING_RATE = 5e-5
+
+# Model:
 MODEL_NAME = "bert-base-uncased"
+SAVE_BEST_PATH = 'best_model.pth'
+
+# Data:
+DATA_PATH = 'dataset.csv'
+TRAIN_SPLIT_PATH = 'train.csv'
+VAL_SPLIT_PATH = 'val.csv'
+TEST_SPLIT_PATH = 'test.csv'
+
+# Experiment:
+CREATE_SPLITS = True  # Если нужно датасет разбить на трейн, вал, тест. Иначе - сразу грузим все 3 части из соотв. файлов.
+
+
+
 
 class HumorDataset(Dataset):
     def __init__(self, encodings, labels):
@@ -37,29 +52,80 @@ def load_data(path):
     return texts, labels
 
 
-def prepare_data(texts, labels, tokenizer):
-    train_texts, test_texts, train_labels, test_labels = train_test_split(
-        texts, labels, test_size=0.2, random_state=42
+
+def create_splits(texts, labels):
+    train_texts, temp_texts, train_labels, temp_labels = train_test_split(
+            texts, 
+            labels,
+            test_size = 0.2,
+            shuffle = True,
+            random_state = 42,
+            stratify = labels
     )
     
+    val_texts, test_texts, val_labels, test_labels = train_test_split(
+        temp_texts, 
+        temp_labels,
+        test_size = 0.5,
+        shuffle = True,
+        random_state = 42,
+        stratify = temp_labels
+    )
+
+    save_split(train_texts, train_labels, TRAIN_SPLIT_PATH)
+    save_split(val_texts, val_labels, VAL_SPLIT_PATH)
+    save_split(test_texts, test_labels, TEST_SPLIT_PATH)
+    
+    
+    
+def save_split(texts, labels, filename):
+    df = pd.DataFrame(
+        {
+            'text': texts,
+            'label': labels
+        }    
+    )
+    
+    df.to_csv(filename, index = False)
+    
+
+
+def load_split(filename):
+    df = pd.read_csv(filename)  
+    texts = df['text'] 
+    labels = df['label']
+    return texts, labels
+        
+    
+
+def prepare_data(tokenizer):
+    
+    train_texts, train_labels = load_split(TRAIN_SPLIT_PATH)
+    val_texts, val_labels = load_split(VAL_SPLIT_PATH)
+    test_texts, test_labels = load_split(TEST_SPLIT_PATH)
+    
     train_encodings = tokenizer(list(train_texts), truncation=True, padding=True, max_length = MAX_LENGTH)
+    val_encodings = tokenizer(list(val_texts), truncation=True, padding=True, max_length = MAX_LENGTH)
     test_encodings = tokenizer(list(test_texts), truncation=True, padding=True, max_length = MAX_LENGTH)
     
     # Преобразуем метки в тензоры
     train_labels = torch.tensor(train_labels.values)
+    val_labels = torch.tensor(val_labels.values)
     test_labels = torch.tensor(test_labels.values)
 
     train_dataset = HumorDataset(train_encodings, train_labels)
+    val_dataset = HumorDataset(val_encodings, val_labels)
     test_dataset = HumorDataset(test_encodings, test_labels)
         
-    return train_dataset, test_dataset
+    return train_dataset, val_dataset, test_dataset
 
 
-def create_dataloaders(train_dataset, test_dataset):
+def create_dataloaders(train_dataset, val_dataset, test_dataset):
     train_dataloader = DataLoader(train_dataset, batch_size = BATCH_SIZE, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size = BATCH_SIZE)
     test_dataloader = DataLoader(test_dataset, batch_size = BATCH_SIZE)
     
-    return train_dataloader, test_dataloader
+    return train_dataloader, val_dataloader, test_dataloader
 
 
 def create_model(model_name = MODEL_NAME, lr = LEARNING_RATE):
@@ -69,17 +135,14 @@ def create_model(model_name = MODEL_NAME, lr = LEARNING_RATE):
     return model, optimizer 
 
 
-def train_model(model, optimizer, train_loader, device):
-    model.train()
+def train_model(model, optimizer, train_loader, val_dataloader, device):
     # Параметры для ранней остановки
     early_stopping_patience = 3  # Количество эпох без улучшений перед остановкой
     best_loss = float("inf")  # Лучшее значение потерь на текущий момент
     patience_counter = 0  # Счётчик эпох без улучшений
     
-    # Задаём минимально допустимое значение Loss
-    min_acceptable_loss = 0.005  # Пример: остановить, если Loss меньше 0.1
-    
     for epoch in range(EPOCHS):  # Устанавливаем максимальное количество эпох
+        model.train() # именно тут, потому что в конце при валиадции мы же в эвал модель переводим. Значит, надо обратно в трейн вернуть
         print(f"Epoch {epoch + 1}")
         epoch_loss = 0
     
@@ -100,22 +163,45 @@ def train_model(model, optimizer, train_loader, device):
             if step % 10 == 0:
                 print(f"Step {step}, Loss: {loss.item()}")
     
-            # # Прерывание, если Loss ниже порога
-            # if loss.item() < min_acceptable_loss:
-            #     print(f"Stopping early: Loss {loss.item()} < {min_acceptable_loss}")
-            #     break
-    
-        # Средний Loss за эпоху
-        average_epoch_loss = epoch_loss / len(train_loader)
-        print(f"Average loss for epoch {epoch + 1}: {average_epoch_loss}")
-    
-        # Прерывание, если средний Loss ниже порога
-        if average_epoch_loss < min_acceptable_loss:
-            print(f"Stopping early: Average loss {average_epoch_loss} < {min_acceptable_loss}")
-            break
+        # Средний TRAIN LOSS за эпоху
+        avg_train_epoch_loss = epoch_loss / len(train_loader)
+        print(f"Average train loss for epoch {epoch + 1}: {avg_train_epoch_loss}")
         
-    return epoch
+        # Средний VAL LOSS за эпоху
+        avg_val_epoch_loss = validate_model(model, val_dataloader, device)
+        print(f"Average val loss for epoch {epoch + 1}: {avg_val_epoch_loss}")
+        
+        
+        # Прерывание если средний val loss не улучшается на протяжении early_stopping_patience эпох:
+        if avg_val_epoch_loss < best_loss:
+            best_loss = avg_val_epoch_loss
+            patience_counter = 0
+            save_model(SAVE_BEST_PATH, model, optimizer)
+        else:
+            patience_counter += 1 
+            if patience_counter >= early_stopping_patience:
+                print(f'Stopping after {early_stopping_patience} epochs without val loss improvement')
+                break
+    
 
+
+
+def validate_model(model, val_dataloader, device):
+    model.eval()
+    total_loss = 0
+    
+    with torch.no_grad():
+        for batch in val_dataloader:
+            batch = {
+                key: val.to(device)
+                for key, val in batch.items()
+            }
+            outputs = model(**batch)
+            total_loss += outputs.loss.item()
+
+    avg_loss = total_loss / len(val_dataloader)
+
+    return avg_loss
 
 
 
@@ -201,12 +287,13 @@ def evaluate_model(model, test_loader, tokenizer, device):
     }   
 
 
-def save_model(save_path, model, optimizer, epoch):
+
+
+def save_model(save_path, model, optimizer):
     torch.save(
         {
             "model_state_dict": model.state_dict(),  # Веса модели
             "optimizer_state_dict": optimizer.state_dict(),  # Параметры оптимизатора
-            "epoch": epoch,  # Последняя эпоха
         }, 
             save_path
     )
@@ -214,23 +301,30 @@ def save_model(save_path, model, optimizer, epoch):
     print(f"Model saved to {save_path}")
 
 
+
 def main():
-    data_path = 'dataset.csv'
-    save_path = 'trained_model.pth'
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-    texts, labels = load_data(data_path)
-    train_dataset, test_dataset = prepare_data(texts, labels, tokenizer)
-    train_dataloader, test_dataloader = create_dataloaders(train_dataset, test_dataset)
+    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
+    
+    if CREATE_SPLITS:
+        texts, labels = load_data(DATA_PATH)
+        create_splits(texts, labels)
+    
+    train_dataset, val_dataset, test_dataset = prepare_data(tokenizer)
+    train_dataloader, val_dataloader, test_dataloader = create_dataloaders(train_dataset, val_dataset, test_dataset)
     model, optimizer = create_model()
     
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model.to(device)
     
-    last_epoch = train_model(model, optimizer, train_dataloader, device)
+    train_model(model, optimizer, train_dataloader, val_dataloader, device)
+    
+    checkpoint = torch.load(SAVE_BEST_PATH)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    
     metrics = evaluate_model(model, test_dataloader, tokenizer, device)
     print(metrics)
 
-    save_model(save_path, model, optimizer, last_epoch)
+
     
 
     
