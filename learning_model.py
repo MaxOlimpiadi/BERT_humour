@@ -36,7 +36,7 @@ TEST_RESULTS_FILE = 'predictions.csv'
 
 
 # Experiment:
-CREATE_SPLITS = True  # Если нужно датасет разбить на трейн, вал, тест. Иначе - сразу грузим все 3 части из соотв. файлов.
+CREATE_SPLITS = False  # Если нужно датасет разбить на трейн, вал, тест. Иначе - сразу грузим все 3 части из соотв. файлов.
 LOG_FILE_NAME = "experiments_log.csv"
 
 

@@ -1,3 +1,6 @@
 old_learning.py
 .spyproject
 dataset.csv
+requirements.txt
+loss_info.txt
+*.pth

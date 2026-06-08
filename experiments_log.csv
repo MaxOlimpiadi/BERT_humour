@@ -1,0 +1,2 @@
+datetime,dataset,model,lr,batch_size,accuracy,precision,recall,f1
+2026-06-06 04:13:02,dataset.csv,bert-base-uncased,5e-05,16,0.98425,0.9803590913599841,0.9883,0.9843135302026791
