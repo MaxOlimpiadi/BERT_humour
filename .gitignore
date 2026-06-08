@@ -4,3 +4,5 @@ dataset.csv
 requirements.txt
 loss_info.txt
 *.pth
+models/
+kaggle_dataset.xlsx
