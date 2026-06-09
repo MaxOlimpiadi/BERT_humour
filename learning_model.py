@@ -22,10 +22,10 @@ SAVE_BEST_PATH = 'best_model.pth'
 
 # Datasets:
 DATA_FOLDER = 'datasets'    
-DATASET_FILE = 'dataset.csv'
+DATASET_FILE = 'kaggle_dataset.csv'
 
 # Splits:
-SPLIT_FOLDER = 'split'
+SPLIT_FOLDER = 'split/Kaggle_dataset_split'
 TRAIN_SPLIT_FILE = 'train.csv'
 VAL_SPLIT_FILE = 'val.csv'
 TEST_SPLIT_FILE = 'test.csv'
@@ -59,8 +59,11 @@ class HumorDataset(Dataset):
 
 def load_data(path):
     data = pd.read_csv(path)
+    print(data["humor"].dtype)
+    print(type(data["humor"].iloc[0]))
     texts = data["text"]  # Тексты шуток
-    labels = data["humor"].map({True: 1, False: 0})
+    labels = data["humor"].astype(int)
+    #labels = data["humor"].map({True: 1, False: 0}) # только для датасетов, где в поле humor лежать TRUE/FALSE
     
     return texts, labels
 
