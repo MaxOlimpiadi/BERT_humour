@@ -1,5 +1,4 @@
 from sklearn.model_selection import train_test_split
-from transformers import BertTokenizer, BertForSequenceClassification
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
 import torch
@@ -8,7 +7,8 @@ from torch.nn.functional import softmax
 from sklearn.metrics import classification_report, accuracy_score, precision_score, recall_score, f1_score
 import os
 from datetime import datetime
-
+from transformers import AutoModelForSequenceClassification
+from transformers import AutoTokenizer
 
 # Training parameters:
 BATCH_SIZE = 16
@@ -17,15 +17,18 @@ EPOCHS = 10
 LEARNING_RATE = 5e-5
 
 # Model:
-MODEL_NAME = "bert-base-uncased"
+MODEL_NAME = "roberta-base"
 SAVE_BEST_PATH = 'best_model.pth'
 
 # Datasets:
 DATA_FOLDER = 'datasets'    
+#DATASET_FILE = 'colbert_dataset.csv'
 DATASET_FILE = 'kaggle_dataset.csv'
 
 # Splits:
+#SPLIT_FOLDER = 'split/ColBERT_dataset_split'
 SPLIT_FOLDER = 'split/Kaggle_dataset_split'
+
 TRAIN_SPLIT_FILE = 'train.csv'
 VAL_SPLIT_FILE = 'val.csv'
 TEST_SPLIT_FILE = 'test.csv'
@@ -145,7 +148,7 @@ def create_dataloaders(train_dataset, val_dataset, test_dataset):
 
 
 def create_model(model_name = MODEL_NAME, lr = LEARNING_RATE):
-    model = BertForSequenceClassification.from_pretrained(model_name, num_labels = 2)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels = 2)
     optimizer = AdamW(model.parameters(), lr = lr)
     
     return model, optimizer 
@@ -339,7 +342,7 @@ def log_experiment(dataset_name, model_name, lr, batch_size, metrics_dict, log_f
 
 
 def main():
-    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     
     if CREATE_SPLITS:
         data_path = os.path.join(DATA_FOLDER, DATASET_FILE)
