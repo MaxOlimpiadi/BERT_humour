@@ -26,8 +26,8 @@ DATA_FOLDER = 'datasets'
 DATASET_FILE = 'kaggle_dataset.csv'
 
 # Splits:
-#SPLIT_FOLDER = 'split/ColBERT_dataset_split'
-SPLIT_FOLDER = 'split/Kaggle_dataset_split'
+SPLIT_FOLDER = 'split/ColBERT_dataset_split'
+#SPLIT_FOLDER = 'split/Kaggle_dataset_split'
 
 TRAIN_SPLIT_FILE = 'train.csv'
 VAL_SPLIT_FILE = 'val.csv'
