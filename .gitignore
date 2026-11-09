@@ -7,3 +7,6 @@ loss_info.txt
 models/
 kaggle_dataset.xlsx
 tmp.py
+model_predictions/*
+
+!model_predictions/.gitkeep

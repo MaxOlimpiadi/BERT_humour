@@ -14,16 +14,17 @@ from transformers import AutoTokenizer
 BATCH_SIZE = 16
 MAX_LENGTH = 512
 EPOCHS = 10
-LEARNING_RATE = 5e-5
+LEARNING_RATE = 5e-5 #было вот так
+#LEARNING_RATE = 2e-5
 
 # Model:
-MODEL_NAME = "roberta-base"
+MODEL_NAME = "distilbert-base-uncased"
 SAVE_BEST_PATH = 'best_model.pth'
 
 # Datasets:
 DATA_FOLDER = 'datasets'    
-#DATASET_FILE = 'colbert_dataset.csv'
-DATASET_FILE = 'kaggle_dataset.csv'
+DATASET_FILE = 'colbert_dataset.csv'
+#DATASET_FILE = 'kaggle_dataset.csv'
 
 # Splits:
 SPLIT_FOLDER = 'split/ColBERT_dataset_split'
@@ -34,12 +35,13 @@ VAL_SPLIT_FILE = 'val.csv'
 TEST_SPLIT_FILE = 'test.csv'
 
 # Test prediction results:
-TEST_RESULTS_FOLDER = 'test'
+TEST_RESULTS_FOLDER = 'model_predictions'
 TEST_RESULTS_FILE = 'predictions.csv'
 
 
 # Experiment:
 CREATE_SPLITS = False  # Если нужно датасет разбить на трейн, вал, тест. Иначе - сразу грузим все 3 части из соотв. файлов.
+DELETE_OLD_LOG = False
 LOG_FILE_NAME = "experiments_log.csv"
 
 
@@ -348,6 +350,8 @@ def main():
         data_path = os.path.join(DATA_FOLDER, DATASET_FILE)
         texts, labels = load_data(data_path)
         create_splits(texts, labels)
+    if DELETE_OLD_LOG and os.path.exists(LOG_FILE_NAME):
+        os.remove(LOG_FILE_NAME)
     
     train_dataset, val_dataset, test_dataset = prepare_data(tokenizer)
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(train_dataset, val_dataset, test_dataset)
