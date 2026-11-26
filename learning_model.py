@@ -14,16 +14,19 @@ from transformers import AutoTokenizer
 BATCH_SIZE = 16
 MAX_LENGTH = 512
 EPOCHS = 10
-LEARNING_RATE = 5e-5 #было вот так
-#LEARNING_RATE = 2e-5
+#LEARNING_RATE = 5e-5 #было вот так
+LEARNING_RATE = 2e-5
 
 # Model:
 MODEL_NAME = "distilbert-base-uncased"
+#MODEL_NAME = "roberta-base"
+#MODEL_NAME = "bert-base-uncased"
+
 SAVE_BEST_PATH = 'best_model.pth'
 
 # Datasets:
 DATA_FOLDER = 'datasets'    
-DATASET_FILE = 'colbert_dataset.csv'
+DATASET_FILE = 'colbert_dataset_cleaned.csv'
 #DATASET_FILE = 'kaggle_dataset.csv'
 
 # Splits:
